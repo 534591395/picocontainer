@@ -1,5 +1,11 @@
 // 应用  ，SSR
 import loadHtml from './source'
+import Sandbox from './sandbox'
+
+
+// 微应用实例
+export const appInstanceMap = new Map()
+
 
 export interface CreateAppParam {
   name: string
@@ -17,6 +23,7 @@ export default class PicocontainerApp {
   url: string = ''
   container: HTMLElement | ShadowRoot | null = null
   loadCount = 0
+  sandbox: Sandbox | null = null
 
   constructor({ name, url, container}: CreateAppParam) {
     this.container = container ?? null
@@ -24,6 +31,7 @@ export default class PicocontainerApp {
     this.url = url
     this.status = 'loading'
     loadHtml(this)
+    this.sandbox = new Sandbox()
   }
 
   status = 'created' // 组件状态，包括 created/loading/mount/unmount
@@ -64,7 +72,7 @@ export default class PicocontainerApp {
 
     // 执行js
     this.source.scripts.forEach((info: any) => {
-      (0, eval)(info.code)
+      (0, eval)((this.sandbox as Sandbox).bindScope(info.code))
     })
 
     // 标记应用为已渲染
@@ -75,8 +83,13 @@ export default class PicocontainerApp {
    * 卸载应用
    * 执行关闭沙箱，清空缓存等操作
    */
-  unmount () {}
+  unmount (destory: any) {
+    this.status = 'unmount'
+    this.container = null
+    this.sandbox?.stop()
+    if (destory) {
+      appInstanceMap.delete(this.name)
+    }
+  }
 }
 
-// 资源缓存
-export const appInstanceMap = new Map()
